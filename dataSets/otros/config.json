@@ -1,0 +1,9 @@
+{
+    "emb_dim": 128,
+    "layers": 4,
+    "num_heads": 4,
+    "ff_dim": 256,
+    "vocab_size": 600,
+    "num_cmds": 7,
+    "max_len": 20
+}

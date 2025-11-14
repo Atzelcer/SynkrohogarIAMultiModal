@@ -1,0 +1,6 @@
+{
+  "input_dim": 126,
+  "hidden_dim": 256,
+  "vocab_size": 108,
+  "max_len": 35
+}

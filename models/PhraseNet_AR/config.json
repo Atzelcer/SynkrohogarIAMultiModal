@@ -1,0 +1,7 @@
+{
+    "num_cmds": 7,
+    "vocab_size": 600,
+    "emb_dim": 128,
+    "hidden_dim": 256,
+    "max_len": 64
+}
