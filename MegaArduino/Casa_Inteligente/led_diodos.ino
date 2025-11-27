@@ -5,26 +5,41 @@
 #define LED3 5
 #define LED4 11
 
+extern bool tecladoEnUso;
+extern void imprimirTiempo(const String &nombre, unsigned long dt);
+
 void LEDS_begin() {
-  pinMode(LED1, OUTPUT);
-  pinMode(LED2, OUTPUT);
-  pinMode(LED3, OUTPUT);
-  pinMode(LED4, OUTPUT);
-  apagarTodosLEDs();
+    pinMode(LED1, OUTPUT);
+    pinMode(LED2, OUTPUT);
+    pinMode(LED3, OUTPUT);
+    pinMode(LED4, OUTPUT);
+    apagarTodosLEDs();
 }
 
 void encenderTodosLEDs() {
-  digitalWrite(LED1, HIGH);
-  digitalWrite(LED2, HIGH);
-  digitalWrite(LED3, HIGH);
-  digitalWrite(LED4, HIGH);
-  Serial.println("Luces encendidas.");
+    if (tecladoEnUso) return;
+
+    unsigned long t0 = micros();
+
+    digitalWrite(LED1, HIGH);
+    digitalWrite(LED2, HIGH);
+    digitalWrite(LED3, HIGH);
+    digitalWrite(LED4, HIGH);
+
+    unsigned long dt = micros() - t0;
+    imprimirTiempo("LED_ON", dt);
 }
 
 void apagarTodosLEDs() {
-  digitalWrite(LED1, LOW);
-  digitalWrite(LED2, LOW);
-  digitalWrite(LED3, LOW);
-  digitalWrite(LED4, LOW);
-  Serial.println("Luces apagadas.");
+    if (tecladoEnUso) return;
+
+    unsigned long t0 = micros();
+
+    digitalWrite(LED1, LOW);
+    digitalWrite(LED2, LOW);
+    digitalWrite(LED3, LOW);
+    digitalWrite(LED4, LOW);
+
+    unsigned long dt = micros() - t0;
+    imprimirTiempo("LED_OFF", dt);
 }

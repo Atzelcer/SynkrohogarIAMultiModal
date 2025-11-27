@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>SynkroHogar IA</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+
+<body>
+
+    <canvas id="particlesCanvas"></canvas>
+
+    <header>
+        <div class="header-container">
+            <div class="header-left">
+                <div id="leftTag">SIS421</div>
+                <div id="rightTag">COM460</div>
+            </div>
+
+            <div class="header-center">
+                <div id="title">SYNKROHOGAR – IA MULTIMODAL</div>
+
+                <div id="pipelineContainer">
+                    <span class="node" id="node1">GESTO</span>
+                    <span class="arrow">➜</span>
+                    <span class="node" id="node2">COMANDO</span>
+                    <span class="arrow">➜</span>
+                    <span class="node" id="node3">FRASE</span>
+                    <span class="arrow">➜</span>
+                    <span class="node" id="node4">AUDIO</span>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <img src="images/CICO_Portal.png" class="side-logo" alt="Logo CICO">
+            </div>
+        </div>
+    </header>
+
+    <div id="layout">
+        <div class="card video">
+            <h2>Gestos - Celular 1</h2>
+            <img src="http://127.0.0.1:8000/video_gestos" alt="Video Gestos" style="width: 100%; height: auto;">
+        </div>
+
+        <div id="panelIA" class="card details">
+            <h2>Panel IA</h2>
+            <div class="row"><span class="label">Gesto Detectado:</span><span id="gesto" class="value"></span></div>
+            <div class="row"><span class="label">Comando Enviado:</span><span id="comando" class="value"></span></div>
+            <div class="row"><span class="label">Frase Generada:</span><span id="frase" class="value"></span></div>
+            <div class="row"><span class="label">Audio:</span><span id="audioIndicator"
+                    class="value audio-off">•••</span></div>
+        </div>
+
+        <div class="card video">
+            <h2>Casa - Celular 2</h2>
+            <img src="http://127.0.0.1:8000/video_casa" alt="Video Casa" style="width: 100%; height: auto;">
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+
+</body>
+
+</html>

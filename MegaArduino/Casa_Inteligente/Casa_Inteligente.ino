@@ -1,7 +1,6 @@
 #include <Arduino.h>
-#define SERIAL_ESP Serial2  // Comunicación con ESP32-CAM
+#define SERIAL_ESP Serial2
 
-// ----------------- DECLARACIONES DE MÓDULOS -----------------
 void LCD_begin();
 void mostrarEnLCD(const String &line1, const String &line2 = "");
 void mostrarPanelPrincipal();
@@ -18,14 +17,12 @@ extern bool tecladoEnUso;
 
 void Servo_begin();
 void abrirPuerta(unsigned long ms = 5000);
-void setBuzzersMuted(bool mute);
 
 void Buzzer_begin();
 void playActivationSound();
 void playDeactivationSound();
 void playError();
 void playAccess();
-void stopAlerts();
 
 void SensoresPIR_begin();
 void verificarPIR();
@@ -34,19 +31,39 @@ void Melodias_begin();
 void siguienteMelodia();
 void anteriorMelodia();
 void reproducirMelodia(int index);
+extern void detenerMelodia();
 
-// --- Módulo LEDs ---
 void LEDS_begin();
 void encenderTodosLEDs();
 void apagarTodosLEDs();
 
-// ----------------- VARIABLES GLOBALES -----------------
-unsigned long lastStatusSend = 0;
+void EfectosEspeciales_begin();
 
-// ----------------- SETUP -----------------
+extern int modoActual;
+extern void cambiarModo(int nuevoModo);
+extern void modoUltra();
+extern void modoAurora();
+extern bool gestoSiguiente;
+extern bool gestoAnterior;
+extern bool cambioAutomatico;
+
+#define NORMAL 0
+#define SUPER  1
+#define ULTRA  2
+#define AURORA 3
+
+void imprimirTiempo(const String &nombre, unsigned long dt) {
+  float seg = dt / 1000000.0;
+  Serial.print(nombre);
+  Serial.print(": ");
+  Serial.print(seg, 3);
+  Serial.println(" seg");
+  mostrarEnLCD(nombre, String(seg, 3) + " seg");
+}
+
 void setup() {
-  Serial.begin(115200);       // Comunicación con PC
-  SERIAL_ESP.begin(115200);   // Comunicación con ESP32-CAM
+  Serial.begin(115200);
+  SERIAL_ESP.begin(115200);
 
   LCD_begin();
   Buzzer_begin();
@@ -55,81 +72,185 @@ void setup() {
   Teclado_begin();
   SensoresPIR_begin();
   Melodias_begin();
-  LEDS_begin(); // inicializa LEDs
+  LEDS_begin();
+  EfectosEspeciales_begin();
 
-  Serial.println("Sistema SynkroHogar - Módulo Central Iniciado.");
-  desactivarSistema();
-  delay(1500);
+  cambiarModo(NORMAL);
   mostrarPanelPrincipal();
-
   SERIAL_ESP.println("ESP_SYNC|READY");
-  Serial.println("Esperando comandos desde ESP32-CAM...");
 }
 
-// ----------------- LOOP PRINCIPAL -----------------
+void procesarComandoESP32(String msg) {
+
+  leerTeclado();
+  RFID_readUIDIfPresent();
+  detenerMelodia();
+
+  if (msg == "CMD|OPEN_DOOR") {
+    unsigned long t0 = micros();
+    abrirPuerta(3000);
+    imprimirTiempo("PUERTA", micros() - t0);
+    SERIAL_ESP.println("ACK|OPEN_DOOR");
+    return;
+  }
+
+  // ============================================================
+  // SUPER ON → EXACTO AL TECLADO (1111)
+  // ============================================================
+  if (msg == "CMD|SUPER_ON") {
+    unsigned long t0 = micros();
+    cambioAutomatico = false;
+
+    activarSistema();  // ← PRIMERO, igual que el teclado
+    cambiarModo(SUPER);
+
+    imprimirTiempo("SUPER ON", micros() - t0);
+    SERIAL_ESP.println("ACK|SUPER_ON");
+    return;
+  }
+
+  if (msg == "CMD|SUPER_OFF") {
+    unsigned long t0 = micros();
+    cambiarModo(NORMAL);
+    desactivarSistema();
+    imprimirTiempo("SUPER OFF", micros() - t0);
+    SERIAL_ESP.println("ACK|SUPER_OFF");
+    return;
+  }
+
+  // ============================================================
+  // ULTRA
+  // ============================================================
+  if (msg == "CMD|ULTRA_ON") {
+    if (modoActual != NORMAL) {
+      SERIAL_ESP.println("ERR|NO_NORMAL");
+      return;
+    }
+    unsigned long t0 = micros();
+    cambioAutomatico = false;
+    cambiarModo(ULTRA);
+    imprimirTiempo("ULTRA ON", micros() - t0);
+    SERIAL_ESP.println("ACK|ULTRA_ON");
+    return;
+  }
+
+  // ============================================================
+  // AURORA
+  // ============================================================
+  if (msg == "CMD|AURORA_ON") {
+    if (modoActual != NORMAL) {
+      SERIAL_ESP.println("ERR|NO_NORMAL");
+      return;
+    }
+    unsigned long t0 = micros();
+    cambioAutomatico = false;
+    cambiarModo(AURORA);
+    imprimirTiempo("AURORA ON", micros() - t0);
+    SERIAL_ESP.println("ACK|AURORA_ON");
+    return;
+  }
+
+if (msg == "CMD|NORMAL_ON") {
+    unsigned long t0 = micros();
+
+    desactivarSistema();  
+
+    cambiarModo(NORMAL);
+    mostrarPanelPrincipal();
+
+    imprimirTiempo("NORMAL", micros() - t0);
+    SERIAL_ESP.println("ACK|NORMAL_ON");
+    return;
+}
+
+
+  // ============================================================
+  // LEDS
+  // ============================================================
+  if (msg == "CMD|LED_ON") {
+    unsigned long t0 = micros();
+    encenderTodosLEDs();
+    imprimirTiempo("LED ON", micros() - t0);
+    SERIAL_ESP.println("ACK|LED_ON");
+    return;
+  }
+
+  if (msg == "CMD|LED_OFF") {
+    unsigned long t0 = micros();
+    apagarTodosLEDs();
+    imprimirTiempo("LED OFF", micros() - t0);
+    SERIAL_ESP.println("ACK|LED_OFF");
+    return;
+  }
+
+  // ============================================================
+  // MÚSICA
+  // ============================================================
+  if (msg == "CMD|CHANGE_MUSIC") {
+    siguienteMelodia();
+    SERIAL_ESP.println("ACK|CHANGE_MUSIC");
+    return;
+  }
+
+  if (msg == "CMD|PREV_MUSIC") {
+    anteriorMelodia();
+    SERIAL_ESP.println("ACK|PREV_MUSIC");
+    return;
+  }
+
+  if (msg == "CMD|PLAY_MUSIC") {
+    reproducirMelodia(0);
+    SERIAL_ESP.println("ACK|PLAY_MUSIC");
+    return;
+  }
+
+  // ============================================================
+  // AURORA GESTOS
+  // ============================================================
+  if (msg == "CMD|AURORA_NEXT") {
+    gestoSiguiente = true;
+    SERIAL_ESP.println("ACK|AURORA_NEXT");
+    return;
+  }
+
+  if (msg == "CMD|AURORA_PREV") {
+    gestoAnterior = true;
+    SERIAL_ESP.println("ACK|AURORA_PREV");
+    return;
+  }
+
+  SERIAL_ESP.println("ERR|UNKNOWN_CMD");
+}
+
 void loop() {
+
   leerTeclado();
   RFID_readUIDIfPresent();
   verificarPIR();
 
-  // --------- RECEPCIÓN DE COMANDOS DESDE ESP32 ---------
+  if (modoActual == ULTRA) {
+    detenerMelodia();
+    unsigned long t0 = micros();
+    modoUltra();
+    imprimirTiempo("ULTRA", micros() - t0);
+  }
+
+  if (modoActual == AURORA) {
+    detenerMelodia();
+    unsigned long t0 = micros();
+    modoAurora();
+    imprimirTiempo("AURORA", micros() - t0);
+  }
+
   if (SERIAL_ESP.available()) {
     String msg = SERIAL_ESP.readStringUntil('\n');
     msg.trim();
-    if (msg.length() > 0) {
-      Serial.print("[Desde ESP32] ");
-      Serial.println(msg);
-
-      if (msg == "CMD|OPEN_DOOR") {
-        abrirPuerta(3000);
-        SERIAL_ESP.println("ACK|OPEN_DOOR");
-      } 
-      else if (msg == "CMD|SUPER_ON") {
-        activarSistema();
-        SERIAL_ESP.println("ACK|SUPER_ON");
-      } 
-      else if (msg == "CMD|SUPER_OFF") {
-        desactivarSistema();
-        SERIAL_ESP.println("ACK|SUPER_OFF");
-      } 
-      else if (msg == "CMD|CHANGE_MUSIC") {
-        siguienteMelodia();
-        SERIAL_ESP.println("ACK|CHANGE_MUSIC");
-      }
-      else if (msg == "CMD|PREV_MUSIC") {
-        anteriorMelodia();
-        SERIAL_ESP.println("ACK|PREV_MUSIC");
-      }
-      else if (msg == "CMD|PLAY_MUSIC") {
-        reproducirMelodia(0);
-        SERIAL_ESP.println("ACK|PLAY_MUSIC");
-      }
-      else if (msg == "CMD|LED_ON") {
-        encenderTodosLEDs();
-        SERIAL_ESP.println("ACK|LED_ON");
-      }
-      else if (msg == "CMD|LED_OFF") {
-        apagarTodosLEDs();
-        SERIAL_ESP.println("ACK|LED_OFF");
-      }else {
-        SERIAL_ESP.println("ERR|UNKNOWN_CMD");
-      }
-    }
+    if (msg.length() > 0) procesarComandoESP32(msg);
   }
 
-  // --------- DEPURACIÓN OPCIONAL DESDE PC ---------
   if (Serial.available()) {
     SERIAL_ESP.write(Serial.read());
   }
 
-  // --------- ENVÍO DE ESTADO AL ESP32 ---------
-  unsigned long now = millis();
-  if (now - lastStatusSend >= 2000) {
-    lastStatusSend = now;
-    String estado = String("STATUS|SYS=") + (sistemaActivo ? "ON" : "OFF");
-    SERIAL_ESP.println(estado);
-    Serial.println("[Mega→ESP32] " + estado);
-  }
-
-  delay(30);
+  delay(20);
 }

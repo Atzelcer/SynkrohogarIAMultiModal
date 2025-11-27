@@ -1,121 +1,155 @@
 #include <Keypad.h>
 #include <Arduino.h>
+#include <FastLED.h>
 
-const byte ROWS = 4;
-const byte COLS = 3;
-char keys[ROWS][COLS] = {
-    {'1','2','3'},
-    {'4','5','6'},
-    {'7','8','9'},
-    {'*','0','#'}
-};
-byte rowPins[ROWS] = {22, 23, 24, 25}; 
-byte colPins[COLS] = {26, 27, 28}; 
-Keypad teclado = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
-
-String claveIngresada = "";
-const String CLAVE_ACTIVAR      = "1111"; 
-const String CLAVE_DESACTIVAR   = "0000"; 
-const String CLAVE_PUERTA       = "1234";
-
-bool sistemaActivo = false;
-bool tecladoEnUso = false; 
-
-extern void mostrarEnLCD(const String &line1, const String &line2);
 extern void playActivationSound();
 extern void playDeactivationSound();
 extern void playError();
 extern void playAccess();
 extern void abrirPuerta(unsigned long ms);
 extern void stopAlerts();
+extern void cambiarModo(int nuevoModo);
+extern void imprimirTiempo(const String &nombre, unsigned long dt);
+extern void mostrarEnLCD(const String &l1, const String &l2);
 extern void mostrarPanelPrincipal();
 
-#define PIR_POWER_PIN 5  
+extern CRGB t1[];
+extern CRGB t2[];
+extern int N1;
+extern int N2;
 
-void Teclado_begin() {
-}
+#define PIR_POWER_PIN 5
 
+#define NORMAL 0
+#define SUPER  1
+#define ULTRA  2
+#define AURORA 3
+
+extern int modoActual;
+
+bool sistemaActivo  = false;
+bool tecladoEnUso   = false;
+
+String claveIngresada = "";
+
+// TECLADO
+const byte ROWS = 4;
+const byte COLS = 3;
+
+char keys[ROWS][COLS] = {
+  {'1','2','3'},
+  {'4','5','6'},
+  {'7','8','9'},
+  {'*','0','#'}
+};
+
+byte rowPins[ROWS] = {22,23,24,25};
+byte colPins[COLS] = {26,27,28};
+
+Keypad teclado = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
+
+void Teclado_begin() {}
+
+// ========================================================
+// ACTIVAR SISTEMA (SUPER)
+// ========================================================
 void activarSistema() {
-    digitalWrite(PIR_POWER_PIN, HIGH); 
+
+    unsigned long t0 = micros();
+
+    if (modoActual != NORMAL) {
+        playError();
+        imprimirTiempo("TECLADO_ERROR", micros() - t0);
+        return;
+    }
+
+    digitalWrite(PIR_POWER_PIN, HIGH);
     sistemaActivo = true;
-    tecladoEnUso = false; 
-    
-    playActivationSound(); 
-    
-    Serial.println("====================================");
-    Serial.println(">> MODO SUPER ACTIVADO (1111#) <<");
-    Serial.println("====================================");
-    
-    mostrarEnLCD("Clave OK!", "Modo Super ACTIVADO"); 
-    delay(1500);
-    mostrarPanelPrincipal(); 
+
+    playActivationSound();
+    cambiarModo(SUPER);
+
+    imprimirTiempo("TECLADO_SUPER", micros() - t0);
 }
 
+// ========================================================
+// DESACTIVAR SISTEMA (NORMAL)
+// ========================================================
 void desactivarSistema() {
+
+    unsigned long t0 = micros();
+
     sistemaActivo = false;
-    digitalWrite(PIR_POWER_PIN, LOW); 
-    
+
+    digitalWrite(PIR_POWER_PIN, LOW);
     stopAlerts();
-    
-    playDeactivationSound(); 
-    tecladoEnUso = false; 
-    
-    Serial.println("====================================");
-    Serial.println(">> MODO NORMAL DESACTIVADO (0000#) <<");
-    Serial.println(">> Alimentación PIR APAGADA. <<");
-    Serial.println("====================================");
-    
-    mostrarEnLCD("Clave OK!", "Modo Normal (OFF)"); 
-    delay(1500);
-    mostrarPanelPrincipal(); 
+    playDeactivationSound();
+
+    for (int i = 0; i < N1; i++) t1[i] = CRGB::Black;
+    for (int i = 0; i < N2; i++) t2[i] = CRGB::Black;
+    FastLED.show();
+
+    cambiarModo(NORMAL);
+
+    imprimirTiempo("TECLADO_NORMAL", micros() - t0);
 }
 
+// ========================================================
+// LÓGICA PRINCIPAL DEL TECLADO
+// ========================================================
 void leerTeclado() {
-    char tecla = teclado.getKey();
-    if (!tecla) return;
 
-    if (tecla != '*' && tecla != '#') {
+    char t = teclado.getKey();
+    if (!t) return;
+
+    // --- DIGITOS ---
+    if (t != '*' && t != '#') {
+
         tecladoEnUso = true;
-        mostrarEnLCD("Clave:", claveIngresada + tecla + "*"); 
-    }
 
-    if (tecla == '#') {
-        if (claveIngresada == CLAVE_ACTIVAR) {
-            activarSistema();
-        } else if (claveIngresada == CLAVE_DESACTIVAR) {
-            desactivarSistema();
-        } else if (claveIngresada == CLAVE_PUERTA) {
-            mostrarEnLCD("Clave OK!", "Abriendo Puerta...");
-            playAccess();
-            abrirPuerta(5000);
-            mostrarPanelPrincipal(); 
-            tecladoEnUso = false;
-        } else {
-            Serial.println("Clave INCORRECTA.");
-            playError();
-            mostrarEnLCD("Clave INCORRECTA!", "ACCESO DENEGADO"); 
-            delay(1500);
-            mostrarPanelPrincipal(); 
-            tecladoEnUso = false; 
+        if (claveIngresada.length() < 8) {
+            claveIngresada += t;
+
+            // MOSTRAR EN LCD EN TIEMPO REAL
+            mostrarEnLCD("Clave:", claveIngresada);
         }
-        claveIngresada = "";
+
         return;
     }
 
-    if (tecla == '*') {
+    // --- BORRAR ---
+    if (t == '*') {
         claveIngresada = "";
-        Serial.println("Clave borrada.");
-        mostrarEnLCD("Clave borrada", "Ingrese de nuevo");
-        tecladoEnUso = false; 
-        delay(1000);
-        mostrarPanelPrincipal(); 
+        tecladoEnUso = true;
+        mostrarEnLCD("Clave:", "");
         return;
     }
 
-    if (claveIngresada.length() < 8) {
-        claveIngresada += tecla;
-        String msg1 = "Clave: " + claveIngresada;
-        Serial.print(msg1);
-        Serial.println("*");
+    // --- PROCESAR (#) ---
+    if (t == '#') {
+
+        unsigned long t0 = micros();
+
+        if (claveIngresada == "1111") activarSistema();
+        else if (claveIngresada == "0000") desactivarSistema();
+        else if (claveIngresada == "1234") { playAccess(); abrirPuerta(5000); }
+        else if (claveIngresada == "2222") {
+            if (modoActual != NORMAL) playError();
+            else cambiarModo(ULTRA);
+        }
+        else if (claveIngresada == "3333") {
+            if (modoActual != NORMAL) playError();
+            else cambiarModo(AURORA);
+        }
+        else {
+            playError();
+        }
+
+        imprimirTiempo("TECLADO", micros() - t0);
+
+        claveIngresada = "";
+        tecladoEnUso = false;
+
+        mostrarPanelPrincipal();
     }
 }

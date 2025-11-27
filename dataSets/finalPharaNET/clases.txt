@@ -1,0 +1,11 @@
+0,abrirPuerta
+1,anteriorMelodia
+2,apagarLuces
+3,auroraSiguiente
+4,encenderLuces
+5,modoAurora
+6,modoBola
+7,modoNormal
+8,modoSuper
+9,modoUltra
+10,siguienteMelodia

@@ -1,77 +1,135 @@
 #include <Arduino.h>
 
-#define BUZZER_ALARMA 8  // Sirena Fuerte (ALERTA MAYOR PIR)
-#define BUZZER_PIR1 6    // Buzzer para Alerta PIR 1 (Pin 6)
-#define BUZZER_PIR2 7    // Buzzer para Alerta PIR 2 (Pin 7)
+#define BUZZER_ALARMA 6
+#define BUZZER_OK_1 7
+#define BUZZER_OK_2 8
+
+extern void imprimirTiempo(const String &nombre, unsigned long dt);
 
 bool buzzersMuted = false;
-const long ALARM_DURATION_MS = 7000;
 
 void Buzzer_begin() {
-    pinMode(BUZZER_ALARMA, OUTPUT);
-    pinMode(BUZZER_PIR1, OUTPUT);
-    pinMode(BUZZER_PIR2, OUTPUT);
-    digitalWrite(BUZZER_ALARMA, LOW);
+  pinMode(BUZZER_ALARMA, OUTPUT);
+  pinMode(BUZZER_OK_1, OUTPUT);
+  pinMode(BUZZER_OK_2, OUTPUT);
+  digitalWrite(BUZZER_ALARMA, LOW);
 }
 
 void setBuzzersMuted(bool mute) {
-    buzzersMuted = mute;
-    if (mute) {
-        noTone(BUZZER_ALARMA);
-        noTone(BUZZER_PIR1);
-        noTone(BUZZER_PIR2);
-    }
+  unsigned long t0 = micros();
+  buzzersMuted = mute;
+  noTone(BUZZER_ALARMA);
+  noTone(BUZZER_OK_1);
+  noTone(BUZZER_OK_2);
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_MUTE", dt);
 }
 
 void playError() {
-    if (buzzersMuted) return;
-    tone(BUZZER_PIR1, 900, 300); 
+  unsigned long t0 = micros();
+  if (!buzzersMuted) {
+    unsigned long inicio = millis();
+    while (millis() - inicio < 4000) {
+      for (int f = 800; f <= 2000; f += 40) {
+        tone(BUZZER_ALARMA, f, 20);
+        delay(20);
+        if (millis() - inicio >= 4000) break;
+      }
+      for (int f = 2000; f >= 800; f -= 40) {
+        tone(BUZZER_ALARMA, f, 20);
+        delay(20);
+        if (millis() - inicio >= 4000) break;
+      }
+    }
+  }
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_ERROR", dt);
 }
 
 void playAccess() {
-    if (buzzersMuted) return;
-    int n1[] = {1200, 1500, 1800};
-    for (int i = 0; i < 3; i++) {
-        tone(BUZZER_PIR1, n1[i], 80);
-        delay(100);
-    }
-    noTone(BUZZER_PIR1);
+  unsigned long t0 = micros();
+  if (!buzzersMuted) {
+    tone(BUZZER_OK_1, 1200, 100);
+    tone(BUZZER_OK_2, 800, 100);
+    delay(120);
+
+    tone(BUZZER_OK_1, 1500, 100);
+    tone(BUZZER_OK_2, 1100, 100);
+    delay(130);
+
+    tone(BUZZER_OK_1, 1800, 160);
+    tone(BUZZER_OK_2, 1400, 160);
+  }
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_ACCESS", dt);
 }
 
 void playActivationSound() {
-    tone(BUZZER_PIR1, 1000, 100); 
-    delay(100);
-    tone(BUZZER_PIR1, 1500, 150); 
-    delay(150);
+  unsigned long t0 = micros();
+  if (!buzzersMuted) {
+    tone(BUZZER_OK_1, 1000, 120);
+    tone(BUZZER_OK_2, 700, 120);
+    delay(140);
+
+    tone(BUZZER_OK_1, 1500, 180);
+    tone(BUZZER_OK_2, 1000, 180);
+  }
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_ACTIVAR", dt);
 }
 
 void playDeactivationSound() {
-    tone(BUZZER_PIR1, 1500, 100); 
-    delay(100);
-    tone(BUZZER_PIR1, 1000, 150); 
-    delay(150);
+  unsigned long t0 = micros();
+  if (!buzzersMuted) {
+    tone(BUZZER_OK_1, 1500, 120);
+    tone(BUZZER_OK_2, 1000, 120);
+    delay(140);
+
+    tone(BUZZER_OK_1, 900, 180);
+    tone(BUZZER_OK_2, 600, 180);
+  }
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_DESACTIVAR", dt);
 }
 
-// Alerta PIR 1 (Pin 6): Tono Agudo Sostenido
 void playAlertPIR1() {
-    tone(BUZZER_PIR1, 3500); 
-    noTone(BUZZER_PIR2); 
+  unsigned long t0 = micros();
+  if (!buzzersMuted) {
+    tone(BUZZER_ALARMA, 1800, 140);
+    delay(150);
+    tone(BUZZER_ALARMA, 2600, 140);
+    delay(150);
+  }
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_PIR1", dt);
 }
 
-// Alerta PIR 2 (Pin 7): Tono Grave Sostenido
 void playAlertPIR2() {
-    tone(BUZZER_PIR2, 1000); 
-    noTone(BUZZER_PIR1); 
+  unsigned long t0 = micros();
+  if (!buzzersMuted) {
+    tone(BUZZER_ALARMA, 1600, 140);
+    delay(150);
+    tone(BUZZER_ALARMA, 2400, 140);
+    delay(150);
+  }
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_PIR2", dt);
 }
 
 void playPIRSirenaFuerte() {
-    tone(BUZZER_ALARMA, 3000, ALARM_DURATION_MS); 
-    noTone(BUZZER_PIR1); 
-    noTone(BUZZER_PIR2); 
+  unsigned long t0 = micros();
+  if (!buzzersMuted) {
+    tone(BUZZER_ALARMA, 3200, 6000);
+  }
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_SIRENA", dt);
 }
 
 void stopAlerts() {
-    noTone(BUZZER_PIR1);
-    noTone(BUZZER_PIR2);
-    noTone(BUZZER_ALARMA); 
+  unsigned long t0 = micros();
+  noTone(BUZZER_OK_1);
+  noTone(BUZZER_OK_2);
+  noTone(BUZZER_ALARMA);
+  unsigned long dt = micros() - t0;
+  imprimirTiempo("BUZZER_STOP", dt);
 }

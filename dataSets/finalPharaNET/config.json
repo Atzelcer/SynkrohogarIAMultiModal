@@ -1,0 +1,11 @@
+{
+    "input_dim": 126,
+    "h1": 512,
+    "h2": 256,
+    "h3": 128,
+    "h4": 64,
+    "output_dim": 11,
+    "activation": "ReLU",
+    "framework": "PyTorch",
+    "optimized_for": "SynkroHogar Gesture Classification"
+}
